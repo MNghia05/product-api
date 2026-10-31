@@ -1,0 +1,98 @@
+services:
+  auth-db:
+    image: postgres:16
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres123
+      - POSTGRES_DB=auth_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  customer-db:
+    image: mongo
+    ports:
+      - "27019:27017"
+    volumes:
+      - customer-db-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    ports:
+      - "3001:3001"
+      - "50051:50051"
+    environment:
+      - PORT=3001
+      - GRPC_PORT=50051
+      - GRPC_DNS_RESOLVER=native
+      - DATABASE_URL=postgresql://postgres:postgres123@auth-db:5432/auth_db?schema=public
+      - JWT_SECRET=microservice_jwt_secret_change_me
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.js"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  customer-service:
+    build:
+      context: .
+      dockerfile: services/customer-service/Dockerfile
+    ports:
+      - "3002:3002"
+      - "50052:50052"
+    environment:
+      - PORT=3002
+      - GRPC_PORT=50052
+      - GRPC_DNS_RESOLVER=native
+      - MONGO_URI=mongodb://customer-db:27017/customer_db
+      - JWT_SECRET=microservice_jwt_secret_change_me
+    depends_on:
+      customer-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.js"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - GRPC_DNS_RESOLVER=native
+      - AUTH_GRPC_URL=auth-service:50051
+      - CUSTOMER_GRPC_URL=customer-service:50052
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      customer-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.js"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  auth-db-data:
+  customer-db-data:

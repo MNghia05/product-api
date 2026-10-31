@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package customer;
+
+service CustomerService {
+  rpc CreateCustomer (CustomerInput) returns (CustomerResponse);
+  rpc GetCustomer (GetCustomerRequest) returns (CustomerResponse);
+  rpc ListCustomers (Empty) returns (CustomerListResponse);
+  rpc UpdateCustomer (UpdateCustomerRequest) returns (CustomerResponse);
+  rpc DeleteCustomer (GetCustomerRequest) returns (StatusResponse);
+}
+
+message Empty {}
+
+message CustomerInput {
+  int32 uid = 1;
+  string fullname = 2;
+  int32 age = 3;
+  string address = 4;
+}
+
+message UpdateCustomerRequest {
+  int32 uid = 1;
+  string fullname = 2;
+  int32 age = 3;
+  string address = 4;
+}
+
+message GetCustomerRequest {
+  int32 uid = 1;
+}
+
+message CustomerResponse {
+  int32 uid = 1;
+  string fullname = 2;
+  int32 age = 3;
+  string address = 4;
+}
+
+message CustomerListResponse {
+  repeated CustomerResponse customers = 1;
+}
+
+message StatusResponse {
+  bool success = 1;
+  string message = 2;
+}
